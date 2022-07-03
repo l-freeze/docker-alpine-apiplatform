@@ -1,0 +1,71 @@
+version: '3.9'
+x-common-env: 
+  &common-env
+  APP_NAME: ${APP_NAME}
+  APP_ROOT: ${APP_ROOT}
+  MYSQL_DATABASE: ${MYSQL_DATABASE}
+  MYSQL_USER: ${MYSQL_USER}
+  MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+  MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+  MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS}
+
+services:
+  php:
+    build: 
+      context: ./php
+      args:
+        <<: *common-env
+    image: ${APP_NAME}-php:alpine
+    container_name: ${APP_NAME}-php
+    environment:
+      <<: *common-env
+    depends_on:
+      - mysql
+      - redis
+    volumes:
+      - ./volumes/src:/var/apiplatform
+  mysql:
+    build: ./mysql
+    image: ${APP_NAME}-mysql:alpine
+    container_name: ${APP_NAME}-mysql
+    environment: 
+      <<: *common-env
+    volumes:
+      - database:/var/lib/mysql
+  nginx:
+    build: 
+      context: ./nginx
+      args:
+        <<: *common-env
+    image: ${APP_NAME}-nginx:alpine
+    container_name: ${APP_NAME}-nginx
+    restart: always
+    ports:
+      - 80:80
+      - 443:443
+    environment:
+      <<: *common-env
+    depends_on:
+      - php
+    volumes:
+      - ./volumes/src:/var/apiplatform
+      - sslCerts:/etc/nginx/conf.d/ssl
+  redis:
+    build: ./redis
+    image: ${APP_NAME}-redis:alpine
+    container_name: ${APP_NAME}-redis
+  mailhog:
+    image: mailhog/mailhog
+    container_name: ${APP_NAME}-mailhog
+    ports:
+      - 8025:8025
+volumes:
+  database:
+    name: ${APP_NAME}-database
+  npmCache:
+    name: ${APP_NAME}-npmCache
+    driver: local
+  sslCerts:
+    name: ${APP_NAME}-sslCerts
+    driver: local
+  #phpsocket: "/var/run/"
